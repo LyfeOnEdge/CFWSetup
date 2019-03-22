@@ -11,6 +11,10 @@ import webbrowser
 import time
 import urllib.request 
 
+opener = urllib.request.build_opener()
+opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+urllib.request.install_opener(opener)
+
 chosensdpath = None
 selectedConfirmation = None
 temp_folder = "temp/" #hate all you want for the unix-style slashes ;D
@@ -58,6 +62,7 @@ def setSDpath():
 	pathvalue.set(str(chosensdpath))
 	spewToTextOutput("Install path set to: {}".format(str(chosensdpath)))
 
+#used for testing
 def downloadFileList(filestodownload):
 	for fileURLandFileName in filestodownload:
 		downloadlocation = get_path(temp_folder+fileURLandFileName[FILE_NAME])
@@ -75,6 +80,7 @@ def downloadFile(downloadas, filetodownload):
 	downloadlocation = get_path(temp_folder+downloadas)
 	spewToTextOutput("Downloading file {} from url {}".format(downloadas,filetodownload))
 	try: 
+
 		urllib.request.urlretrieve(filetodownload, downloadlocation)
 	
 	except:
