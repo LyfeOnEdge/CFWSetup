@@ -10,6 +10,7 @@ from zipfile import ZipFile
 import webbrowser
 import time
 import urllib.request 
+import shutil
 
 opener = urllib.request.build_opener()
 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
@@ -28,17 +29,23 @@ URL_STRING = 1
 
 #FILES, DOWNLOAD LOCATIONS, CFW NAME STRINGS
 CFWFLAVORS = [
-	["Kosmos (atmos 0.8.5) ","kosmos.zip", "https://github.com/AtlasNX/Kosmos/releases/download/v11.11.1/KosmosV11111.zip"],
-	["Atmos (vanilla 0.8.5)", "atmos.zip", "https://github.com/Atmosphere-NX/Atmosphere/releases/download/0.8.5/atmosphere-0.8.5-master-b42d16cf+hbl-2.1+hbmenu-3.0.1.zip"],
+	["Kosmos (atmos 0.8.5 base) ","kosmos.zip", "https://github.com/AtlasNX/Kosmos/releases/download/v11.11.1/KosmosV11111.zip"],
+	["Atmos (stock 0.8.5)", "atmos.zip", "https://github.com/Atmosphere-NX/Atmosphere/releases/download/0.8.5/atmosphere-0.8.5-master-b42d16cf+hbl-2.1+hbmenu-3.0.1.zip"],
 ]
 
 #FORMAT FRIENDLY NAME, DOWNLOAD NAME, DOWNLOAD URL, INSTALL PATH
+FLAVOR = 0
+DOWNLOAD = 1
+URLTOGET= 2
+INSTALLPATH = 3
+
 NSPINSTALLERS = [
 	["None", None, None, None],
 	["Tinfoil (blawar)","lithium.zip", "http://tinfoil.io/repo/lithium.latest.zip",""],
 	["Lithium (blawar)","tinfoilblawar.zip", "http://tinfoil.io/repo/tinfoil.latest.zip",""],
 	["Tinfoil (addubz)","addubztinfoil.zip", "https://bsnx.lavatech.top/tinfoil/tinfoil-883e3bd.zip","switch"],
 	["Goldleaf (XorTroll)","xortrollgoldleaf.zip","https://bsnx.lavatech.top/goldleaf/goldleaf-d212c5a.zip","goldleaf"],
+	["Tinfoil (satelliteseeker fork)", "satellitetinfoil.nro", "https://github.com/satelliteseeker/Tinfoil/releases/download/v0.2.1-USB-fix2/Tinfoil.nro",""]
 	#goldleaf and addubz tinfoil currently throw a 403: forbidden
 ]
 
@@ -105,7 +112,7 @@ def installprocess():
 				if selectedcfw == flavortext:
 					spewToTextOutput("Downloading and copying {} to sd card".format(filename))
 					downloadFile(filename,fileurl,)
-					installziptosd(filename,"")
+					installfiletosd(filename,"")
 
 	 		#get chosen title installer
 			selectedinstaller = nspinstallerversion.get()
@@ -116,11 +123,11 @@ def installprocess():
 					if selectedinstaller == flavortext:
 						spewToTextOutput("Downloading and copying {} to sd card".format(filename))
 						downloadFile(filename,fileurl)
-						installziptosd(filename,subfolder)
+						installfiletosd(filename,subfolder)
 
 			if patchvar.get():
 				downloadFile(sigpatches_file[0],sigpatches_file[1])
-				installziptosd(sigpatches_file[0], "")
+				installfiletosd(sigpatches_file[0], "")
 
 				# except:
 				# 	spewToTextOutput("Unknown error in function installprocess()")
@@ -133,24 +140,29 @@ def installprocess():
 	spewToTextOutput("SD setup finished")
 
 
-def installziptosd(ziptoinstall,subfolder):
+def installfiletosd(filetoinstall,subfolder):
+
 	textoutput.config(state=NORMAL)
-	textoutput.insert(END, "Copying {} to {}\n".format(ziptoinstall, chosensdpath))
+	textoutput.insert(END, "Copying {} to {}\n".format(filetoinstall, chosensdpath))
 	textoutput.config(state=DISABLED)
 	textoutput.see(END)
 
-	with ZipFile(get_path(temp_folder+ ziptoinstall), 'r') as zipObj:
-		try:
-			zipObj.extractall(os.path.join(chosensdpath,subfolder))
-			spewToTextOutput("{} installed successfully.".format(ziptoinstall))
-		except:
-			spewToTextOutput("Failed to unzip or copy files")
+	if filetoinstall.endswith(".zip"):
+		with ZipFile(get_path(temp_folder+ filetoinstall), 'r') as zipObj:
+			try:
+				zipObj.extractall(os.path.join(chosensdpath,subfolder))
+				spewToTextOutput("{} installed successfully.".format(filetoinstall))
+			except:
+				spewToTextOutput("Failed to unzip or copy files")
 
+	elif filetoinstall.endswith(".nro"):
+		print (str(os.path.join(os.path.join(chosensdpath,subfolder), filetoinstall)))
+		shutil.move(get_path(temp_folder + filetoinstall), os.path.join(os.path.join(chosensdpath,subfolder), filetoinstall))
 
 
 
 #Gui setup
-gridrow = 0; #variable for building the gui
+gridrow = 0 #variable for building the gui
 mainwindow = tkinter.Tk(screenName=None,  baseName=None,  className='Pozmos installer',  useTk=1)
 mainwindow.title("CFWSetup Version {}".format(version))
 mainwindow.resizable(False, False)
