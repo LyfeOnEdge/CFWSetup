@@ -15,7 +15,7 @@ chosensdpath = None
 selectedConfirmation = None
 temp_folder = "temp/" #hate all you want for the unix-style slashes ;D
 
-helplink = "https://docs.google.com/document/d/1PArPBt2Kt1ZOBQi75gj6U2Ua2BfGW6-qM547t3aRkt0/edit#bookmark=id.8p16hw7qd6v4"
+helplink = "https://guide.sdsetup.com/"
 
 
 #DEFINITIONS
