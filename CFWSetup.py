@@ -129,7 +129,7 @@ def installprocess():
 
 def installziptosd(ziptoinstall,subfolder):
 	textoutput.config(state=NORMAL)
-	textoutput.insert(END, "Copying {} to {}".format(ziptoinstall, chosensdpath))
+	textoutput.insert(END, "Copying {} to {}\n".format(ziptoinstall, chosensdpath))
 	textoutput.config(state=DISABLED)
 	textoutput.see(END)
 
