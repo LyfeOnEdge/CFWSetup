@@ -1,4 +1,4 @@
-version = "0.3 (BETA)"
+version = "0.5 (BETA)"
 thankyoutext = "A special thanks to all the users on Amiibru, /hbg/, /r/SwitchPirates, and gbatemp for the help, suggestions, good ideas, and support. This app is in its infancy, plans include additional community homebrew, nut.py integration, always-up-to-date downloads and more. If you have questions comments, or suggestions use the links below to join my discord or GBAtemp thread."
 
 guidetext = """Start by setting your micro SD card up, you'll 
