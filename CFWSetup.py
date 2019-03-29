@@ -413,7 +413,7 @@ patchbutton.configure(background=backgroundcolor)
 gridrow += 1
 
 keepfiles = IntVar()
-keepfilesbutton = Checkbutton(mainwindow, text="Keep files after installation? '/temp'", variable=keepfiles)
+keepfilesbutton = Checkbutton(mainwindow, text="Keep files after installation? '/downloads''", variable=keepfiles)
 keepfilesbutton.grid(column = COLA, row=gridrow, sticky="w",pady=(0))
 keepfilesbutton.configure(background=backgroundcolor)
 gridrow += 1
