@@ -504,27 +504,27 @@ def getUpdatedSoftwareLinks():
 	return SOFTWARELOCATIONS
 
 #for testing
-def fillStringWithoutDownloading():
-	for softwarechunk in SOFTWARELOCATIONS:
-		githubjsonlink = softwarechunk["githubapi"]
-		softwarename = softwarechunk["software"]
-		if githubjsonlink == None:
-			print("direct download, skipping {}".format(softwarename))
-		else:
-			downloadas = joinpaths(downloadsfolder, softwarename + ".json")
-			json_file_list.append(softwarename)
-			softwarechunk["gotjson"] = True,
+# def fillStringWithoutDownloading():
+# 	for softwarechunk in SOFTWARELOCATIONS:
+# 		githubjsonlink = softwarechunk["githubapi"]
+# 		softwarename = softwarechunk["software"]
+# 		if githubjsonlink == None:
+# 			print("direct download, skipping {}".format(softwarename))
+# 		else:
+# 			downloadas = joinpaths(downloadsfolder, softwarename + ".json")
+# 			json_file_list.append(softwarename)
+# 			softwarechunk["gotjson"] = True,
 
-			with open(downloadas) as json_file:
-				assetsmember = 0
-				if softwarename == "Kosmos":
-					assetsmember = 1 #hacky way to get the right asset for fusee-primary.bin, will probably add an assetsmember tag to the dictionaries
-				jfile = json.load(json_file)
-				try:
-					softwarechunk["directlink"] = jfile["assets"][assetsmember]["browser_download_url"]
-				except:
-					print("Failed to add directlink for {}".format(softwarename))
-	return SOFTWARELOCATIONS
+# 			with open(downloadas) as json_file:
+# 				assetsmember = 0
+# 				if softwarename == "Kosmos":
+# 					assetsmember = 1 #hacky way to get the right asset for fusee-primary.bin, will probably add an assetsmember tag to the dictionaries
+# 				jfile = json.load(json_file)
+# 				try:
+# 					softwarechunk["directlink"] = jfile["assets"][assetsmember]["browser_download_url"]
+# 				except:
+# 					print("Failed to add directlink for {}".format(softwarename))
+# 	return SOFTWARELOCATIONS
 
 
 # def getcfw():

@@ -46,7 +46,7 @@ opener = urllib.request.build_opener()
 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
 urllib.request.install_opener(opener)
 
-HOMEBREWDICT = webgrabber.fillStringWithoutDownloading()
+#HOMEBREWDICT = webgrabber.fillStringWithoutDownloading()
 HOMEBREWDICT = webgrabber.getUpdatedSoftwareLinks()
 firmwareversion = []
 for softwarechunk in HOMEBREWDICT:
