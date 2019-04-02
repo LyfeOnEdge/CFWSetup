@@ -1,4 +1,4 @@
-version = "0.6 (BETA)"
+version = "0.7 (BETA)"
 
 guidetext = """Start by setting your micro SD card up, you'll 
 need to select your desired firmware, title installers if 
@@ -22,32 +22,37 @@ this button will install the PyUSB module from the official source
 using PIP.
 """
 
-#tkinter doesn't include everything by default
-import tkinter
-from tkinter import *
-import tkinter.font as tkFont
-from tkinter import filedialog
-from tkinter import messagebox
-
 #file handling and fusee launching
 import os, sys, subprocess
 import shutil
 chosensdpath = None
-#archive handling 
+
+#archive handling
 from zipfile import ZipFile
 import tarfile
 
-#URLS, Friendly names, install paths
-from locations import *
-import webgrabber 
+#GUI imports (weird import format)
+import tkinter
+from tkinter import *
+from tkinter import messagebox
+from tkinter import filedialog
 
+import webbrowser
 import urllib.request 
 opener = urllib.request.build_opener()
 opener.addheaders = [('User-agent', 'Mozilla/5.0')]
 urllib.request.install_opener(opener)
 
-#HOMEBREWDICT = webgrabber.fillStringWithoutDownloading()
-HOMEBREWDICT = webgrabber.getUpdatedSoftwareLinks()
+#my modules
+from locations import * #Get LOCATIONS_DICT, 
+from format import * #Text formatting and colors
+import webhandler
+import homebrewexplorer
+
+HOMEBREWDICT = webhandler.fillStringWithoutDownloading(LOCATIONS_DICT) #Testing function, populate dict with pre-downloaded jsons
+#HOMEBREWDICT = webhandler.getUpdatedSoftwareLinks(LOCATIONS_DICT) #Get api jsons and populate dictionary
+
+#populate various sub-dicts, no info changes after this point so they still match the main homebrew dict
 firmwareversion = []
 for softwarechunk in HOMEBREWDICT:
 	if softwarechunk["group"] == "CFW":
@@ -88,12 +93,25 @@ for softwarechunk in HOMEBREWDICT:
 fusee_path = "fusee-launcher-master"
 selectedConfirmation = None
 
-#COLORSANDFONTS
-labelfont = "Helvetica"
-backgroundcolor = "darkgrey"
 
 #used to install pyusb for fusee
 pyusbinstalled = None
+
+def get_path(filename):
+	return os.path.join(sys.path[0], filename)
+
+def exists(filename):
+	return os.path.isfile(filename)
+
+downloadsfolder = get_path("downloads\\")
+#if downloads folder hasn't been made create it
+if not exists(downloadsfolder):
+	os.mkdir(downloadsfolder)
+
+
+def joinpaths(prefix,suffix):
+	return os.path.join(prefix,suffix)
+
 def installPyUSB():
     try:
     	print(subprocess.call([sys.executable, "-m", "pip", "install", "pyusb"]))
@@ -108,14 +126,6 @@ def checkifpyusbinstalled():
 		return True
 	return False
 
-# def openusbwindow():
-# 	pyusbwindow = tkinter.Tk(screenName=None,  baseName=None,  className='CFWGuide',  useTk=1)
-# 	pyusbwindow.title("Install PyUSB?")
-# 	pyusbwindow.resizable(False, False)
-# 	pyusbwindow.iconbitmap(get_path("cfwsetupicon.ico"))
-# 	pyusblabel = Message(pyusbwindow, text = "fusee-launcher requires PyUSB to work, install it?", font=(labelfont, 9, 'bold'))
-# 	pyusblabel.grid(column = 0, row = 0, padx=(0,0), pady=(0,0))
-# 	pyusblabel.configure(background=backgroundcolor)
 
 def injectpayload():
 	#check if pyusb installed, if not ask if user wants to install it
@@ -141,14 +151,28 @@ def injectpayload():
 			if softwarechunk["software"] == payloadtoinject:
 				fileurl = softwarechunk["directlink"]
 				filename = fileurl.rsplit('/', 1)[-1]
-		
-		downloadFile(filename, fileurl)
+				downloadFile(filename, fileurl)	#regardless of zip format we need to start by downloading the file
+				if not softwarechunk["itemslist"] == None: #IF WE HAVE SPECIFIED AN ITEM TO EXTRACT, IT'S A ZIP
+					downloadedfilename = os.path.join(get_path(downloadsfolder), filename)
+					print("File exists: {}".format(exists(downloadedfilename)))
+					with ZipFile(downloadedfilename, 'r') as zipObj:
+						# try:
+							zipObj.extractall(get_path(downloadsfolder))
+							filename = os.path.join(get_path(downloadsfolder), softwarechunk["itemslist"]["payload"])
+						# except:
+						# 	spewToTextOutput("Failed to unzip or copy files")	
+						# 	return
+				else:
+					filename = get_path(os.path.join(downloadsfolder, filename))
+
+
 
 		spewToTextOutput("Injecting payload {}".format(filename))
 
 		fusee_file = os.path.join(fusee_path, "fusee-launcher.py")
 		script_path = get_path(fusee_file)
-		payload_path = get_path(downloadsfolder + filename)
+		payload_path = filename
+		print("injecting path {}".format(payload_path))
 		p = subprocess.Popen([sys.executable, '-u', script_path, payload_path],
 		          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		with p.stdout:
@@ -167,8 +191,7 @@ def extractTar(tarfilename, target):
 	    tar.extractall(path = target)
 	    tar.close()
 
-def get_path(filename):
-	return os.path.join(sys.path[0], filename)
+
 
 def spewToTextOutput(textToSpew):
 	textoutput.config(state=NORMAL)
@@ -204,7 +227,7 @@ def downloadFile(downloadas, filetodownload):
 	# 	return False
 	return
 
-downloadsfolder = get_path("downloads\\")
+
 def installprocess():
 	result = tkinter.messagebox.askyesno("Are you sure you're ready to install?", "Are you sure you're ready to install?")
 	if not(str(chosensdpath) == "None") and not(str(chosensdpath) == ""):
@@ -213,72 +236,24 @@ def installprocess():
 			spewToTextOutput("Got answer: yes")
 			spewToTextOutput("Continuing.")
 			
-			#get chosen cfw
-			selectedcfw = cfwversion.get()
-			print(selectedcfw)
-			for softwarechunk in firmwareversion:
-				if softwarechunk["software"] == selectedcfw:
-					fileurl = softwarechunk["directlink"]
-					filename = fileurl.rsplit('/', 1)[-1]
-					downloadFile(filename,fileurl)
-					spewToTextOutput("Copying {} to sd card".format(filename))
-					installfiletosd(filename,"")
+			appsToInstall = fwlistbox.curselection() #get the selected fw to install
+			installfromselectionandlist(appsToInstall, firmwareversion) #install it (needs reference to list of firmware)
 
 	 		#get chosen title installer
 			appsToInstall = tilistbox.curselection()
-			print(appsToInstall)
-			for selection in appsToInstall:
-				fileurl = tinstaller[selection]["directlink"]
-				filename = fileurl.rsplit('/', 1)[-1]
-				subfolder = tinstaller[selection]["subfolder"]
-				downloadFile(filename,fileurl)
-				spewToTextOutput("Copying {} to sd card".format(filename))
-				if subfolder == None:
-					installfiletosd(filename,"")	
-				else:
-					installfiletosd(filename,subfolder)										
+			installfromselectionandlist(appsToInstall, tinstaller)								
 
 			#get  homebrew
 			appsToInstall = hblistbox.curselection()
-			print(appsToInstall)
-			for selection in appsToInstall:
-				fileurl = hbrew[selection]["directlink"]
-				filename = fileurl.rsplit('/', 1)[-1]
-				subfolder = hbrew[selection]["subfolder"]
-				downloadFile(filename,fileurl)
-				spewToTextOutput("Copying {} to sd card".format(filename))
-				if subfolder == None:
-					installfiletosd(filename,"")	
-				else:
-					installfiletosd(filename,subfolder)		
+			installfromselectionandlist(appsToInstall, hbrew)	
 
 			#get recommended homebrew
 			appsToInstall = reccomendedHBlistbox.curselection()
-			print(appsToInstall)
-			for selection in appsToInstall:
-				fileurl = rechbrew[selection]["directlink"]
-				filename = fileurl.rsplit('/', 1)[-1]
-				subfolder = rechbrew[selection]["subfolder"]
-				downloadFile(filename,fileurl)
-				spewToTextOutput("Copying {} to sd card".format(filename))
-				if subfolder == None:
-					installfiletosd(filename,"")	
-				else:
-					installfiletosd(filename,subfolder)
+			installfromselectionandlist(appsToInstall, rechbrew)
 
 			#get chosen emulators
 			appsToInstall = emulistbox.curselection()
-			print(appsToInstall)
-			for selection in appsToInstall:
-				fileurl = emubrew[selection]["directlink"]
-				filename = fileurl.rsplit('/', 1)[-1]
-				subfolder = emubrew[selection]["subfolder"]
-				downloadFile(filename,fileurl)
-				spewToTextOutput("Copying {} to sd card".format(filename))
-				if subfolder == None:
-					installfiletosd(filename,"")	
-				else:
-					installfiletosd(filename,subfolder)
+			installfromselectionandlist(appsToInstall, emubrew)
 
 			if patchvar.get():
 				for softwarechunk in HOMEBREWDICT:
@@ -299,6 +274,20 @@ def installprocess():
 
 	spewToTextOutput("SD setup finished")
 
+
+
+def installfromselectionandlist(appsToInstall, dicty):
+	for selection in appsToInstall:
+		fileurl = dicty[selection]["directlink"]
+		filename = fileurl.rsplit('/', 1)[-1]
+		subfolder = dicty[selection]["subfolder"]
+		downloadFile(filename,fileurl)
+		spewToTextOutput("Copying {} to sd card".format(filename))
+
+		if subfolder == None:
+			installfiletosd(filename,"")	
+		else:
+			installfiletosd(filename,subfolder)
 
 def installfiletosd(filetoinstall,subfolder):
 	temppath = get_path(os.path.join(downloadsfolder + filetoinstall))
@@ -322,32 +311,159 @@ def installfiletosd(filetoinstall,subfolder):
 		if not keepfiles.get():
 			os.remove(temppath)
 
+
+
+
+#GUI Definitions
+def filllistboxwithcolor(homebrewlistbox,homebrewlist):
+	homebrewlistbox.bind('<<ListboxSelect>>',CurSelet)
+	homebrewlistbox.config(borderwidth=0)
+	homebrewlistbox.config(highlightthickness=1)
+	for softwarechunk in homebrewlist:
+		  # btn1 = tkinter.Button(root, text="button 1")
+    	# button1_ttp = CreateToolTip(btn1, "mouse is over button 1")
+		homebrewlistbox.insert(END, softwarechunk["software"])
+		homebrewlistbox.itemconfig(END, foreground=listboxcolor)
+		if softwarechunk["gotjson"] == False:
+			homebrewlistbox.itemconfig(END, foreground=warningsoft)	
+		if softwarechunk["uptodate"] == False:
+			homebrewlistbox.itemconfig(END, foreground=warninghard)
+
+#binding to get the most recently selected homebrew
+lastclicked = []
+def CurSelet(event):
+	widget = event.widget
+	selection=widget.curselection()
+	try:
+		picked = widget.get(selection[0])
+		print(picked)
+
+		softwarenumber = 0
+		for softwarechunk in HOMEBREWDICT:
+			if softwarechunk["software"] == picked:
+				softwarechunknumber = softwarenumber
+			softwarenumber+= 1
+
+
+		homebrewexplorer.updatePage(softwarechunknumber)
+	except: 
+		print("nooption")
+
+def openhelpwindow():
+	guidewindow = tkinter.Toplevel(screenName=None,  baseName=None,)
+	guidewindow.title("CFWSetup Guide")
+	guidewindow.resizable(False, False)
+	# guidewindow.iconbitmap(get_path("cfwsetupicon.ico")) Was breaking on linux/windows
+	guidelabel = Message(guidewindow, text = guidetext, font=smallboldtext)
+	guidelabel.grid(column = 0, row = 0, padx=(0,0), pady=(0,0))
+	guidelabel.configure(background=backgroundcolor)
+	guidelabel.configure(foreground=labelcolor)
+
+# def starthbbrowser():
+# 	# homebrewexplorer.startBrowser(HOMEBREWDICT, "external")
+
+
+browseropen = False
+def togglehbwindow():
+	global browseropen
+	if not browseropen:
+
+		homebrewexplorer.startBrowserInternal(HOMEBREWDICT, 0, mainwindow, 3)
+		browseropen = True
+		return
+	homebrewexplorer.destroyBrowserInternal()
+	browseropen = False
+	return
+
+
 #Build Gui
 COLA = 0
 COLB = 1
-COLC = 4
-MAXCOL = 0
+COLC = 2
 
-windowheight = 720
+
+#Gotta clean this up, learned a lot since then, but it works so it's low-priority
+LINKTEXT = 0
+LINKSTRING = 1
+LINKCOMMAND = 2
+
+FAT32GUIDE = [
+"Drive Format Tool",
+"https://gparted.org/"
+]
+
+SDCARDCHECKER = [
+"Verify SD Card Is Legit",
+"https://www.heise.de/download/product/h2testw-50539/download"
+]
+
+DOWNGRADEGUIDE = [
+"Firmware Downgrade Guide",
+"https://guide.sdsetup.com/usingcfw/manualchoiupgrade",
+]
+
+NXTHEMESGUIDE = [
+"NXThemes Usage Guide",
+"https://gbatemp.net/download/nxthemes-installer.35408/"
+]
+
+SWITCHSAVES = [
+"Nintendo Switch Saves",
+"https://gbatemp.net/threads/new-switch-save-site-with-modified-saves-and-100-completed-saves.508661/"
+]
+
+DEVELOPERDISCORD = [
+"Developer Discord / Support",
+"https://discord.gg/cXtmY9M"
+]
+
+#Links
+def openhelp():
+	webbrowser.open_new(HELPLINK)
+
+def OPENFAT32():
+	webbrowser.open_new(FAT32GUIDE[LINKSTRING])
+
+def OPENSDCHECKER():
+	webbrowser.open_new(SDCARDCHECKER[LINKSTRING])
+
+def OPENDOWNGRADEGUIDE():
+	webbrowser.open_new(DOWNGRADEGUIDE[LINKSTRING])
+
+def OPENNXTHEMESGUIDE():
+	webbrowser.open_new(NXTHEMESGUIDE[LINKSTRING])
+
+def OPENSWITCHSAVES():
+	webbrowser.open_new(SWITCHSAVES[LINKSTRING])
+
+def OPENDISCORD():
+	webbrowser.open_new(DEVELOPERDISCORD[LINKSTRING])
+
+def OPENGBATEMP():
+	webbrowser.open_new("https://gbatemp.net/threads/cfwsetup-all-in-one-python-app.534138/")
+
+
+HELPANDTOOLSDROPDOWN = [
+	["Drive Format Tool", "https://gparted.org/",OPENFAT32],
+	["Verify SD Card Is Legit", "https://www.heise.de/download/product/h2testw-50539/download",OPENSDCHECKER],
+	["Firmware Downgrade Guide", "https://guide.sdsetup.com/usingcfw/manualchoiupgrade,",OPENDOWNGRADEGUIDE],
+	["NXThemes Usage Guide", "https://gbatemp.net/download/nxthemes-installer.35408/",OPENNXTHEMESGUIDE],
+	["Nintendo Switch Saves", "https://gbatemp.net/threads/new-switch-save-site-with-modified-saves-and-100-completed-saves.508661/",OPENSWITCHSAVES],
+	["Developer Discord / Support", "https://discord.gg/cXtmY9M",OPENDISCORD],
+]
+
 
 gridrow = 0 #variable for building the gui
-mainwindow = tkinter.Tk(screenName=None,  baseName=None,  className='CFWSetupandinjector',  useTk=1)
+maxgrid = 0
+mainwindow = tkinter.Tk(screenName=None,  baseName=None)
 mainwindow.title("CFWSetup Version {}".format(version))
 mainwindow.resizable(False, False)
-
-mainwindow.iconbitmap(get_path("cfwsetupicon.ico"))
-
-def openhelpwindow():
-	guidewindow = tkinter.Tk(screenName=None,  baseName=None,  className='CFWGuide',  useTk=1)
-	guidewindow.title("CFWSetup Guide")
-	guidewindow.resizable(False, False)
-	guidewindow.iconbitmap(get_path("cfwsetupicon.ico"))
-	guidelabel = Message(guidewindow, text = guidetext, font=(labelfont, 9, 'bold'))
-	guidelabel.grid(column = 0, row = 0, padx=(0,0), pady=(0,0))
-	guidelabel.configure(background=backgroundcolor)
+mainwindow.configure(background=backgroundcolor)
+# mainwindow.iconbitmap(get_path("cfwsetupicon.ico"))
 
 main_menu = tkinter.Menu(mainwindow)
 mainwindow.config(menu = main_menu)
+
 
 main_menu.add_command(label = "Usage Guide", command = openhelpwindow)
 
@@ -357,7 +473,7 @@ for links in HELPANDTOOLSDROPDOWN:
 	main_menu.config(background = backgroundcolor)
 	helpandtoolsmenu.add_command(label = links[LINKTEXT], command = links[LINKCOMMAND])
 
-
+main_menu.add_command(label = "Homebrew Explorer", command = togglehbwindow,)
 
 payloadmenu = tkinter.Menu(mainwindow)
 payloadNum = 0
@@ -367,184 +483,132 @@ payloadmenu.add_separator()
 for softwarechunk in payloads:
 	payloadmenu.add_radiobutton(label = softwarechunk["software"], variable = payloadVar, value = softwarechunk["software"])
 
-
 main_menu.add_cascade(label = "Inject Payload", menu=payloadmenu)
 
-mainwindow.configure(background=backgroundcolor)
+
 
 #COLUMN A
-cfwlabel = Label(mainwindow, height = 1, text = "Select Firmware Flavor:", font=(labelfont, 14, 'bold'))
+cfwlabel = Label(mainwindow, height = 1, text = "Firmware Flavor:", font=(labelfont, 14, 'bold'),)
 cfwlabel.grid(column = COLA, row = gridrow, sticky = "w",pady=(0))
 cfwlabel.configure(background=backgroundcolor)
+cfwlabel.configure(foreground=labelcolor)
+
 gridrow += 1
 
-
-cfwversion = StringVar()
-# cfwversion.set(cfw[0]["software"],)
-loc = 0
-cfwversion.set(firmwareversion[0]["software"])
-for softwarechunk in firmwareversion:
-	b = Radiobutton(mainwindow, text=softwarechunk["software"], variable=cfwversion, value=softwarechunk["software"])
-	b.grid(column=COLA, row=gridrow, sticky = "w")
-	b.configure(background=backgroundcolor)
-	gridrow += 1
+fwlistbox = Listbox(mainwindow,exportselection=0,height=7,font = maintext,selectbackground = "gray20")
+fwlistbox.grid(column = COLA, row = gridrow, rowspan = 1, columnspan=1, sticky="new",pady=(0))
+fwlistbox.configure(background=selectionboxcolor)
+filllistboxwithcolor(fwlistbox,firmwareversion) #build listbox
+gridrow += 1
 
 titleinstallerlabel = Label(mainwindow, height = 1, text = "Select Title Installer", font=(labelfont, 14, 'bold'))
 titleinstallerlabel.grid(column = COLA, row=gridrow,sticky = "w",pady=(0))
 titleinstallerlabel.configure(background=backgroundcolor)
+titleinstallerlabel.configure(foreground=labelcolor)
 gridrow += 1
 
-tilistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0)
-tilistbox.grid(column = COLA, row = gridrow, rowspan = 1, sticky="nsew",pady=(0))
-tilistbox.configure(background=backgroundcolor)
-for softwarechunk in tinstaller:
-		tilistbox.insert(END, softwarechunk["software"])
+tilistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0,font = maintext,selectbackground = "gray20")
+tilistbox.grid(column = COLA, row = gridrow, sticky="nsew",pady=(0))
+tilistbox.configure(background=selectionboxcolor)
+filllistboxwithcolor(tilistbox,tinstaller)
+gridrow += 1
 
-gridrow += 1		
 sigpatchlabel = Label(mainwindow, height = 1, text = "Other:", font=(labelfont, 14, 'bold'))
 sigpatchlabel.grid(column = COLA, row=gridrow, sticky = "w",pady=(0))
 sigpatchlabel.configure(background=backgroundcolor)
+sigpatchlabel.configure(foreground=labelcolor)
 gridrow += 1
 
 patchvar = IntVar()
-patchbutton = Checkbutton(mainwindow, text="Install sigpatches? (recommended)", variable=patchvar)
+patchbutton = Checkbutton(mainwindow, text="Install sigpatches? (recommended)", variable=patchvar, font=smallboldtext)
 patchbutton.grid(column = COLA, row=gridrow, sticky="w",pady=(0))
 patchbutton.configure(background=backgroundcolor)
+patchbutton.configure(selectcolor=backgroundcolor)
+patchbutton.configure(activebackground=backgroundcolor)
+patchbutton.configure(activeforeground=listboxcolor)
+patchbutton.configure(foreground=listboxcolor)
 gridrow += 1
 
 keepfiles = IntVar()
-keepfilesbutton = Checkbutton(mainwindow, text="Keep files after installation? '/downloads''", variable=keepfiles)
-keepfilesbutton.grid(column = COLA, row=gridrow, sticky="w",pady=(0))
+keepfilesbutton = Checkbutton(mainwindow, text="Keep files after installation? '/downloads''", variable=keepfiles, font=smallboldtext,)
+keepfilesbutton.grid(column = COLA, row=gridrow, sticky="nsw",pady=(0))
 keepfilesbutton.configure(background=backgroundcolor)
+keepfilesbutton.configure(selectcolor=backgroundcolor)
+keepfilesbutton.configure(activebackground=backgroundcolor)
+keepfilesbutton.configure(activeforeground=listboxcolor)
+keepfilesbutton.configure(foreground=listboxcolor)
 gridrow += 1
 
-pathvalue = StringVar()
-pathvalue.set("Please select your sd card")
-pathtext = Label(mainwindow, height=1, width = 30, textvariable=pathvalue)
-pathtext.grid(column= COLA, row=gridrow,pady=(0))
-pathtext.configure(background=backgroundcolor)
-gridrow += 1
-
-setpathbutton = Button(mainwindow,text="Select SD root", command=setSDpath, height = 1, width = 30)
-setpathbutton.grid(column= COLA, row=gridrow,pady=(0))
-setpathbutton.configure(background = "silver")
-gridrow += 1
-
-textoutput = Text(mainwindow, height=10, width = 80, font=(labelfont, 8))
+textoutput = Text(mainwindow, height=10, width = 90, font=consoletextfont)
 textoutput.grid(column= COLA, row=gridrow,rowspan = 4,columnspan = 2)
-textoutput.configure({"background": "black"},)
-textoutput.configure({"foreground": "white"},)
+textoutput.configure({"background": consolecolor},)
+textoutput.configure({"foreground": consoletextcolor},)
 textoutput.configure(state=DISABLED)
 gridrow += 4
 
-installbutton = Button(mainwindow,text = "Install", command=installprocess, height=1, width=75,font=(labelfont, 9, 'bold'))
-installbutton.grid(column= COLA,row=gridrow,columnspan = 2,pady=(10))
-installbutton.configure(background = "grey")
+pathvalue = StringVar()
+pathvalue.set("Please select your sd card")
+setpathbutton = Button(mainwindow,textvariable=pathvalue, command=setSDpath, height = 1, width = 53, font=boldtext)
+setpathbutton.grid(column= COLA, row=gridrow,columnspan = 2,pady=(0))
+setpathbutton.configure(background = selectionboxcolor)
+setpathbutton.configure(foreground = bigbuttontextcolor)
 gridrow += 1
 
+installbutton = Button(mainwindow,text = "Install", command=installprocess, height=1, width=53,font=(boldtext))
+installbutton.grid(column= COLA,row=gridrow,columnspan = 2,pady=(0))
+installbutton.configure(background = installbuttoncolor)
+installbutton.configure(foreground = bigbuttontextcolor)
 
-if gridrow > MAXCOL:
-	MAXCOL = gridrow
+
+if maxgrid < gridrow:
+	maxgrid = gridrow
 
 #COLUMN B
 gridrow = 0
 
 reccomendedHomebrewLabel = Label(mainwindow, height = 1, text = "Recommended homebrew", font=(labelfont, 14, 'bold'))
-reccomendedHomebrewLabel.grid(column = COLB, row = gridrow,pady=(0))
+reccomendedHomebrewLabel.grid(column = COLB, row = gridrow,pady=(0),sticky="news")
 reccomendedHomebrewLabel.configure(background=backgroundcolor)
+reccomendedHomebrewLabel.configure(foreground=labelcolor)
 gridrow += 1
 
-reccomendedHBlistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0,height=1)
-reccomendedHBlistbox.grid(column = COLB, row = gridrow, rowspan = 2, sticky="nsew")
-reccomendedHBlistbox.configure(background=backgroundcolor)
-for softwarechunk in rechbrew:
-   		reccomendedHBlistbox.insert(END, softwarechunk["software"])
-gridrow += 2
+reccomendedHBlistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0,height=7,font = maintext,selectbackground = "gray20")
+reccomendedHBlistbox.grid(column = COLB,  row = gridrow, rowspan = 1, columnspan=1, sticky="ew",pady=(0))
+reccomendedHBlistbox.configure(background=selectionboxcolor)
+filllistboxwithcolor(reccomendedHBlistbox,rechbrew)
+gridrow += 1
 
 homebrewLabel = Label(mainwindow, height = 1, text = "Additional homebrew", font=(labelfont, 14, 'bold'))
 homebrewLabel.grid(column = COLB, row = gridrow,pady=(0))
 homebrewLabel.configure(background=backgroundcolor)
+homebrewLabel.configure(foreground=labelcolor)
 gridrow += 1
 
-hblistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0)
+hblistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0,font = maintext,selectbackground = "gray20")
 hblistbox.grid(column = COLB, row = gridrow, rowspan = 1, sticky="nsew",pady=(0))
-hblistbox.configure(background=backgroundcolor)
-for softwarechunk in hbrew:
-   	hblistbox.insert(END, softwarechunk["software"])
+hblistbox.configure(background=selectionboxcolor)
+filllistboxwithcolor(hblistbox,hbrew)
 gridrow += 1
-
-# separatorimageline3 = Label(mainwindow, image = separatorimagepath,width=230)
-# separatorimageline3.grid(column = COLB, row = gridrow,)
-# gridrow += 1
 
 emulabel = Label(mainwindow, height = 1, text = "Emulators", font=(labelfont, 14, 'bold'))
 emulabel.grid(column = COLB, row = gridrow,pady=(0))
 emulabel.configure(background=backgroundcolor)
+emulabel.configure(foreground=labelcolor)
 gridrow += 1
 
-emulistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0, height = 2)
-emulistbox.grid(column = COLB, row = gridrow, rowspan = 4, sticky="nsew",pady=(0))
-emulistbox.configure(background=backgroundcolor)
-for softwarechunk in emubrew:
-   	emulistbox.insert(END, softwarechunk["software"])
-gridrow += 4
+emulistbox = Listbox(mainwindow,selectmode = MULTIPLE,exportselection=0, height = 2,font = maintext,selectbackground = "gray20")
+emulistbox.grid(column = COLB, row = gridrow, rowspan = 2, sticky="nsew",pady=(0))
+emulistbox.configure(background=selectionboxcolor)
+filllistboxwithcolor(emulistbox,emubrew)
+gridrow += 2
 
+if maxgrid < gridrow:
+	maxgrid = gridrow
 
+#COLC
 
-#Try to implement  something like this
-#  tix_Balloon102.py
-# Tkinter extension module tix comes with Python27 and Python3+
-# tix has addtional widgets like ...
-# tix.Balloon (acts like a tooltip)
-# 
-# try:
-#     # Python2
-#     import Tix as tix
-# except ImportError:
-#     # Python3
-#     import tkinter.tix as tix
-# root = tix.Tk()
-# def hello():
-#     label['text'] = 'Hello World'
-#     #label.config(text='Hello World')
-# def bye():
-#     label['text'] = 'Bye Cruel World'
-# label = tix.Label(root, width=40, relief=tix.SUNKEN, bd=1)
-# btn1 = tix.Button(root, text="Hello", command=hello)
-# btn2 = tix.Button(root, text="Bye", command=bye)
-# # create balloon (tooltip) instance
-# balloon = tix.Balloon(root)
-# # bind balloon to buttons
-# balloon.bind_widget(btn1, balloonmsg='Click to show Hallo')
-# balloon.bind_widget(btn2, balloonmsg='Click to show Bye')
-# # layout, stack vertically
-# label.pack()
-# btn1.pack(pady=8)
-# btn2.pack(pady=8)
-# root.mainloop()
-
-
-# #COLUMN C
-# gridrow = 0
-
-
-# thankyoulabel = Message(mainwindow, text = thankyoutext, font=(labelfont, 9, 'bold'))
-# thankyoulabel.grid(column = COLC, row = gridrow, rowspan = 4,padx=(0,0),sticky="n")
-# thankyoulabel.configure(background=backgroundcolor)
-# gridrow += 4
-
-
-# discordbutton = Button(mainwindow,text = "Developer Discord", command=openhelp, height=6, width=30)
-# discordbutton.grid(column= COLC,row=gridrow, sticky="n")
-# discordbutton.configure(background = "silver")
-# gridrow += 1
-
-
-# gbatempbutton = Button(mainwindow,text = "GBAtemp thread", command=OPENGBATEMP, height=1, width=30)
-# gbatempbutton.grid(column= COLC,row=gridrow)
-# gbatempbutton.configure(background = "silver")
-# gridrow += 1
 
 spewToTextOutput("Select your SD path to begin.")
-mainwindow.mainloop()
 
+
+mainwindow.mainloop()
