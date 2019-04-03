@@ -18,7 +18,7 @@ Notice: If no software is shown in the menu when you launch the app it means you
 
 How do I use it?
 * To start on windows: double-click the bat file after installing 
-[python 3.6](https://www.python.org/downloads/release/python-368/)
+[python 3.7](https://www.python.org/downloads/release/python-373/)
     * YOU WILL HAVE TO RESTART YOUR PC AFTERWARD FOR PYTHON'S PATH TO UPDATE
 * Launch via the standard method on mac / linux
 
