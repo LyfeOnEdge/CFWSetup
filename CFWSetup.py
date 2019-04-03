@@ -105,7 +105,7 @@ def exists(filename):
 
 downloadsfolder = get_path("downloads\\")
 #if downloads folder hasn't been made create it
-if not exists(downloadsfolder):
+if not os.path.isdir(downloadsfolder):
 	os.mkdir(downloadsfolder)
 
 

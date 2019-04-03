@@ -8,8 +8,8 @@ What is it?
 * A super-simple open-source python app to set up your SD card for pirating switch games in just a few clicks.
 * Uses only standard libraries (except PyUSB which is downloaded at user's request)
 
-![Payload Injector](https://i.imgur.com/anrgGbr.png)
-![Helpful Links and Tools](https://i.imgur.com/exRmWkG.png)
+![Payload Injector](https://i.redd.it/w3fwqlafxxp21.png)
+![Homebrew Browser](https://i.redd.it/krwshut5yxp21.png)
 
 With CFWSetup, all files are pulled directly from github (if the dev effectively uses releases) or from an always-up-to-date direct link if provided by the developer. I have removed some software included with previous versions due to a lack of a stable location to download from.
 
